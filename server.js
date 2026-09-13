@@ -32,7 +32,7 @@ const articleSchema = new mongoose.Schema({
   excerpt: { type: String, default: "" },
   body: { type: String, default: "" },
   references: { type: String, default: "" },
-  author: { type: String, default: "Staff" },
+  author: { type: String, default: "Team" },
   readTime: { type: Number, default: 5 },
   isHeadline: { type: Boolean, default: false },
   status: { type: String, default: "published" },
@@ -95,6 +95,17 @@ const contactSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+const adSchema = new mongoose.Schema({
+  title: { type: String, default: "Sponsored" },
+  tagline: { type: String, default: "" },
+  description: { type: String, default: "" },
+  buttonText: { type: String, default: "Learn more" },
+  buttonLink: { type: String, default: "" },
+  image: { type: String, default: "" },
+  active: { type: Boolean, default: false },
+  updatedAt: { type: Date, default: Date.now }
+});
+
 const Article = mongoose.model("Article", articleSchema);
 const Member = mongoose.model("Member", memberSchema);
 const Question = mongoose.model("Question", questionSchema);
@@ -102,6 +113,7 @@ const Score = mongoose.model("Score", scoreSchema);
 const Comment = mongoose.model("Comment", commentSchema);
 const Newsletter = mongoose.model("Newsletter", newsletterSchema);
 const Contact = mongoose.model("Contact", contactSchema);
+const Ad = mongoose.model("Ad", adSchema);
 
 function requireAdmin(req, res, next) {
   const pass = req.headers["x-admin-password"] || req.body.adminPassword;
@@ -172,7 +184,7 @@ app.post("/api/admin/articles", requireAdmin, async (req, res) => {
     const data = { ...req.body };
     if (!data.slug && data.title) data.slug = slugify(data.title);
     if (!data.slug) return res.status(400).json({ error: "Title or slug required" });
-    if (!data.author) data.author = "Staff";
+    if (!data.author) data.author = "Team";
     if (!data.readTime) data.readTime = 5;
     if (!data.status) data.status = "published";
     data.updatedAt = new Date();
@@ -494,6 +506,56 @@ app.get("/api/admin/unread-count", requireAdmin, async (req, res) => {
   try {
     const count = await Contact.countDocuments({ read: false });
     res.json({ success: true, count });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/ad", async (req, res) => {
+  try {
+    const ad = await Ad.findOne();
+    res.json({ success: true, ad });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/admin/ad", requireAdmin, async (req, res) => {
+  try {
+    const ad = await Ad.findOne();
+    res.json({ success: true, ad });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put("/api/admin/ad", requireAdmin, async (req, res) => {
+  try {
+    const { title, tagline, description, buttonText, buttonLink, image, active } = req.body;
+    let ad = await Ad.findOne();
+    if (!ad) {
+      ad = await Ad.create({
+        title: title || "Sponsored",
+        tagline: tagline || "",
+        description: description || "",
+        buttonText: buttonText || "Learn more",
+        buttonLink: buttonLink || "",
+        image: image || "",
+        active: !!active
+      });
+    } else {
+      ad.title = title !== undefined ? title : ad.title;
+      ad.tagline = tagline !== undefined ? tagline : ad.tagline;
+      ad.description = description !== undefined ? description : ad.description;
+      ad.buttonText = buttonText !== undefined ? buttonText : ad.buttonText;
+      ad.buttonLink = buttonLink !== undefined ? buttonLink : ad.buttonLink;
+      ad.image = image !== undefined ? image : ad.image;
+      ad.active = active !== undefined ? !!active : ad.active;
+      ad.updatedAt = new Date();
+      await ad.save();
+    }
+    res.json({ success: true, ad });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete("/api/admin/ad", requireAdmin, async (req, res) => {
+  try {
+    await Ad.deleteMany({});
+    res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
