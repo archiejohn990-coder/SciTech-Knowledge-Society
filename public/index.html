@@ -1,1 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0ea5e9">
+  <title>SciTect Knowledge Society</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
 
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand" onclick="go('home')">
+        <div class="brand-logo">
+          <svg viewBox="0 0 40 40" width="34" height="34">
+            <defs>
+              <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#0ea5e9"/>
+                <stop offset="100%" stop-color="#22d3ee"/>
+              </linearGradient>
+            </defs>
+            <circle cx="20" cy="20" r="18" fill="url(#g1)"/>
+            <path d="M12 24 L20 12 L28 24 Z" fill="white"/>
+            <circle cx="20" cy="26" r="2" fill="white"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-name">SciTect Knowledge Society</div>
+          <div class="brand-tag">Science • Technology • Society</div>
+        </div>
+      </div>
+
+      <nav class="main-nav" id="mainNav">
+        <a onclick="go('home')" data-nav="home">Home</a>
+        <a onclick="go('articles')" data-nav="articles">Articles</a>
+        <a onclick="go('ad')" data-nav="ad">Ad</a>
+        <a onclick="go('quiz')" data-nav="quiz">Quiz</a>
+        <a onclick="go('staff')" data-nav="staff">Staff</a>
+      </nav>
+
+      <div class="header-tools">
+        <button class="icon-btn" onclick="toggleSearch()" title="Search">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="7"/>
+            <path d="m21 21-4.3-4.3"/>
+          </svg>
+        </button>
+        <button class="icon-btn menu-btn" onclick="toggleMenu()" title="Menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18M3 12h18M3 18h18"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="search-drop" id="searchDrop">
+      <input id="searchInput" placeholder="Search articles..." oninput="doSearch()" autocomplete="off">
+      <div class="search-results" id="searchResults"></div>
+    </div>
+  </header>
+
+  <main id="app">
+    <div id="loading" class="loading">Loading…</div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <div class="brand-name">SciTect Knowledge Society</div>
+        <div class="brand-tag">Science • Technology • Society</div>
+      </div>
+      <div class="footer-links">
+        <a onclick="go('home')">Home</a>
+        <a onclick="go('articles')">Articles</a>
+        <a onclick="go('ad')">Ad</a>
+        <a onclick="go('quiz')">Quiz</a>
+        <a onclick="go('staff')">Staff</a>
+      </div>
+      <div class="footer-copy">
+        An educational project for Science, Technology & Society (STS). Content is for learning purposes only.
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
