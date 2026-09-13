@@ -48,15 +48,18 @@ const memberSchema = new mongoose.Schema({
   role: { type: String, required: true },
   bio: { type: String, default: "" },
   avatar: { type: String, default: "" },
-  order: { type: Number, default: 99 }
+  order: { type: Number, default: 99 },
+  createdAt: { type: Date, default: Date.now }
 });
 
 const questionSchema = new mongoose.Schema({
+  type: { type: String, default: "abcd" },
   question: { type: String, required: true },
   options: [{ type: String }],
   correctIndex: { type: Number, required: true },
   explanation: { type: String, default: "" },
-  order: { type: Number, default: 99 }
+  order: { type: Number, default: 99 },
+  createdAt: { type: Date, default: Date.now }
 });
 
 const scoreSchema = new mongoose.Schema({
@@ -86,7 +89,9 @@ const newsletterSchema = new mongoose.Schema({
 const contactSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true },
+  subject: { type: String, default: "" },
   message: { type: String, required: true },
+  read: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -171,11 +176,9 @@ app.post("/api/admin/articles", requireAdmin, async (req, res) => {
     if (!data.readTime) data.readTime = 5;
     if (!data.status) data.status = "published";
     data.updatedAt = new Date();
-
     const existing = await Article.findOne({ slug: data.slug });
     if (existing) return res.status(400).json({ error: "Slug already exists" });
     if (data.isHeadline) await Article.updateMany({}, { isHeadline: false });
-
     const article = await Article.create(data);
     res.json({ success: true, article });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -202,21 +205,52 @@ app.delete("/api/admin/articles/:id", requireAdmin, async (req, res) => {
 
 app.get("/api/staff", async (req, res) => {
   try {
-    const list = await Member.find().sort({ order: 1 });
+    const list = await Member.find().sort({ order: 1, createdAt: 1 });
+    res.json({ success: true, staff: list });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/admin/staff", requireAdmin, async (req, res) => {
+  try {
+    const list = await Member.find().sort({ order: 1, createdAt: 1 });
     res.json({ success: true, staff: list });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post("/api/admin/staff", requireAdmin, async (req, res) => {
   try {
-    const member = await Member.create(req.body);
+    const { name, section, role, bio, avatar, order } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: "Name required" });
+    if (!role || !role.trim()) return res.status(400).json({ error: "Role required" });
+    const member = await Member.create({
+      name: name.trim().slice(0, 80),
+      section: (section || "").trim().slice(0, 60),
+      role: role.trim().slice(0, 60),
+      bio: (bio || "").trim().slice(0, 300),
+      avatar: (avatar || "").trim(),
+      order: typeof order === "number" ? order : 99
+    });
     res.json({ success: true, member });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.put("/api/admin/staff/:id", requireAdmin, async (req, res) => {
   try {
-    const member = await Member.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const { name, section, role, bio, avatar, order } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: "Name required" });
+    if (!role || !role.trim()) return res.status(400).json({ error: "Role required" });
+    const member = await Member.findByIdAndUpdate(
+      req.params.id,
+      {
+        name: name.trim().slice(0, 80),
+        section: (section || "").trim().slice(0, 60),
+        role: role.trim().slice(0, 60),
+        bio: (bio || "").trim().slice(0, 300),
+        avatar: (avatar || "").trim(),
+        order: typeof order === "number" ? order : 99
+      },
+      { new: true }
+    );
     if (!member) return res.status(404).json({ error: "Not found" });
     res.json({ success: true, member });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -248,6 +282,7 @@ app.get("/api/quiz", async (req, res) => {
     const list = await Question.find().sort({ order: 1 });
     res.json({ success: true, questions: list.map(q => ({
       _id: q._id,
+      type: q.type || "abcd",
       question: q.question,
       options: q.options,
       explanation: q.explanation
@@ -268,10 +303,7 @@ app.post("/api/quiz/check", async (req, res) => {
       return { question: q.question, given, correct, correctIndex: q.correctIndex, explanation: q.explanation };
     });
     const percentage = Math.round((score / questions.length) * 100);
-    res.json({
-      success: true, score, total: questions.length, percentage,
-      badge: badgeFor(percentage), details
-    });
+    res.json({ success: true, score, total: questions.length, percentage, badge: badgeFor(percentage), details });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -301,6 +333,65 @@ app.get("/api/quiz/leaderboard", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.get("/api/admin/questions", requireAdmin, async (req, res) => {
+  try {
+    const list = await Question.find().sort({ order: 1, createdAt: -1 });
+    res.json({ success: true, questions: list });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post("/api/admin/questions", requireAdmin, async (req, res) => {
+  try {
+    const { type, question, options, correctIndex, explanation, order } = req.body;
+    if (!question) return res.status(400).json({ error: "Question text required" });
+    if (!Array.isArray(options) || options.length < 2) return res.status(400).json({ error: "At least 2 options required" });
+    if (typeof correctIndex !== "number" || correctIndex < 0 || correctIndex >= options.length) {
+      return res.status(400).json({ error: "Invalid correct answer index" });
+    }
+    const q = await Question.create({
+      type: type || "abcd",
+      question: question.trim(),
+      options: options.map(o => String(o).trim()),
+      correctIndex,
+      explanation: explanation || "",
+      order: order || 99
+    });
+    res.json({ success: true, question: q });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put("/api/admin/questions/:id", requireAdmin, async (req, res) => {
+  try {
+    const { type, question, options, correctIndex, explanation, order } = req.body;
+    if (!question) return res.status(400).json({ error: "Question text required" });
+    if (!Array.isArray(options) || options.length < 2) return res.status(400).json({ error: "At least 2 options required" });
+    if (typeof correctIndex !== "number" || correctIndex < 0 || correctIndex >= options.length) {
+      return res.status(400).json({ error: "Invalid correct answer index" });
+    }
+    const q = await Question.findByIdAndUpdate(
+      req.params.id,
+      {
+        type: type || "abcd",
+        question: question.trim(),
+        options: options.map(o => String(o).trim()),
+        correctIndex,
+        explanation: explanation || "",
+        order: order || 99
+      },
+      { new: true }
+    );
+    if (!q) return res.status(404).json({ error: "Not found" });
+    res.json({ success: true, question: q });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete("/api/admin/questions/:id", requireAdmin, async (req, res) => {
+  try {
+    await Question.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get("/api/comments/:slug", async (req, res) => {
   try {
     const list = await Comment.find({ articleSlug: req.params.slug, approved: true })
@@ -323,6 +414,20 @@ app.post("/api/comments/:slug", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.get("/api/admin/comments", requireAdmin, async (req, res) => {
+  try {
+    const list = await Comment.find().sort({ createdAt: -1 }).limit(200);
+    res.json({ success: true, comments: list });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete("/api/admin/comments/:id", requireAdmin, async (req, res) => {
+  try {
+    await Comment.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post("/api/newsletter", async (req, res) => {
   try {
     const email = String(req.body.email || "").trim().toLowerCase();
@@ -334,17 +439,61 @@ app.post("/api/newsletter", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.get("/api/admin/newsletter", requireAdmin, async (req, res) => {
+  try {
+    const list = await Newsletter.find().sort({ createdAt: -1 });
+    res.json({ success: true, subscribers: list });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete("/api/admin/newsletter/:id", requireAdmin, async (req, res) => {
+  try {
+    await Newsletter.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post("/api/contact", async (req, res) => {
   try {
-    const { name, email, message } = req.body;
-    if (!name || !email || !message) return res.status(400).json({ error: "All fields required" });
+    const { name, email, subject, message } = req.body;
+    if (!name || !email || !message) return res.status(400).json({ error: "Name, email, and message are required" });
     if (!email.includes("@")) return res.status(400).json({ error: "Valid email required" });
-    await Contact.create({
+    const entry = await Contact.create({
       name: name.trim().slice(0, 80),
       email: email.trim().slice(0, 120),
+      subject: (subject || "").trim().slice(0, 120),
       message: message.trim().slice(0, 2000)
     });
-    res.json({ success: true, message: "Message received" });
+    res.json({ success: true, message: "Message received", entry });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/admin/messages", requireAdmin, async (req, res) => {
+  try {
+    const list = await Contact.find().sort({ createdAt: -1 });
+    res.json({ success: true, messages: list });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put("/api/admin/messages/:id/read", requireAdmin, async (req, res) => {
+  try {
+    const entry = await Contact.findByIdAndUpdate(req.params.id, { read: true }, { new: true });
+    if (!entry) return res.status(404).json({ error: "Not found" });
+    res.json({ success: true, entry });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete("/api/admin/messages/:id", requireAdmin, async (req, res) => {
+  try {
+    await Contact.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/admin/unread-count", requireAdmin, async (req, res) => {
+  try {
+    const count = await Contact.countDocuments({ read: false });
+    res.json({ success: true, count });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
