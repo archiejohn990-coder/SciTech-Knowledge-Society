@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const path = require("path");
+const fs = require("fs");
+const multer = require("multer");
 const { exec } = require("child_process");
 require("dotenv").config();
 
@@ -23,6 +25,27 @@ if (!MONGO_URL) {
 mongoose.connect(MONGO_URL)
   .then(() => console.log("DB Connected:", mongoose.connection.name))
   .catch(err => { console.error("MongoDB error:", err.message); process.exit(1); });
+
+const uploadsDir = path.join(__dirname, "public", "uploads");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadsDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const name = Date.now() + "-" + Math.round(Math.random() * 1e9) + ext;
+    cb(null, name);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /image\/(jpeg|png|webp|gif|jpg)/.test(file.mimetype);
+    cb(ok ? null : new Error("Only image files allowed"), ok);
+  }
+});
 
 const articleSchema = new mongoose.Schema({
   slug: { type: String, required: true, unique: true },
@@ -271,6 +294,21 @@ app.put("/api/admin/staff/:id", requireAdmin, async (req, res) => {
 app.delete("/api/admin/staff/:id", requireAdmin, async (req, res) => {
   try {
     await Member.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post("/api/admin/upload", requireAdmin, upload.single("file"), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+  res.json({ success: true, url: "/uploads/" + req.file.filename });
+});
+
+app.delete("/api/admin/upload", requireAdmin, (req, res) => {
+  try {
+    const rel = String(req.query.path || "");
+    if (!rel.startsWith("/uploads/")) return res.status(400).json({ error: "Invalid path" });
+    const abs = path.join(__dirname, "public", rel);
+    if (fs.existsSync(abs)) fs.unlinkSync(abs);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
