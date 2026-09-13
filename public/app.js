@@ -226,9 +226,7 @@ async function submitNewsletter(e) {
     if (!res.ok) throw new Error(data.error || "Failed");
     toast("success", data.message || "Subscribed!");
     $("newsletterEmail").value = "";
-  } catch (err) {
-    toast("danger", err.message);
-  }
+  } catch (err) { toast("danger", err.message); }
 }
 
 function renderArticles() {
@@ -534,8 +532,36 @@ function renderQuiz() {
     return;
   }
 
+  if (!state.questions.length) {
+    app.innerHTML = `
+      <div class="section">
+        <div class="quiz-start">
+          <div class="quiz-start-card">
+            <h2>Quiz unavailable</h2>
+            <p>No questions found in the database. Please contact the administrator.</p>
+            <button class="btn-primary" onclick="go('home')">Back to Home</button>
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
   const item = state.questions[q.current];
-  if (!item) { startQuiz(); return; }
+  if (!item) {
+    app.innerHTML = `
+      <div class="section">
+        <div class="quiz-start">
+          <div class="quiz-start-card">
+            <h2>Quiz error</h2>
+            <p>Something went wrong. Please refresh and try again.</p>
+            <button class="btn-primary" onclick="go('quiz')">Restart Quiz</button>
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
   const progress = Math.round((q.current / state.questions.length) * 100);
 
   app.innerHTML = `
@@ -559,6 +585,10 @@ function renderQuiz() {
 }
 
 function startQuiz() {
+  if (!state.questions.length) {
+    toast("danger", "No questions available. Please contact the admin.");
+    return;
+  }
   const name = $("quizName").value.trim();
   const section = $("quizSection").value.trim();
   if (!name) return toast("danger", "Please enter your name.");
@@ -892,7 +922,6 @@ async function deleteArticle(id) {
   } catch (err) { toast("danger", err.message); }
 }
 
-let lastScroll = 0;
 window.addEventListener("scroll", () => {
   const bar = $("progressBar");
   if (!bar) return;
