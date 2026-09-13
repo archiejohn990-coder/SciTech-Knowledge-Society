@@ -567,7 +567,7 @@ function renderQuiz() {
         <div class="quiz-start">
           <div class="quiz-start-card">
             <h2>Quiz unavailable</h2>
-            <p>No questions found in the database. Ask the admin to seed or add questions.</p>
+            <p>No questions found.</p>
             <button class="btn-primary" onclick="go('home')">Back to Home</button>
           </div>
         </div>
