@@ -9,7 +9,17 @@ let state = {
   comments: [],
   filterTag: "",
   adminPass: sessionStorage.getItem("sts_admin_pass") || "",
+  adminTab: "articles",
   editingArticleId: null,
+  editingQuestionId: null,
+  editingStaffId: null,
+  adminArticles: [],
+  adminQuestions: [],
+  adminStaff: [],
+  adminMessages: [],
+  adminComments: [],
+  adminSubscribers: [],
+  unreadCount: 0,
   quiz: {
     name: "", section: "", current: 0, answers: [],
     startedAt: 0, finished: false, result: null
@@ -31,6 +41,14 @@ function toast(type, msg) {
   setTimeout(() => el.remove(), 3500);
 }
 
+function timeAgo(iso) {
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.floor(s / 60) + "m ago";
+  if (s < 86400) return Math.floor(s / 3600) + "h ago";
+  return Math.floor(s / 86400) + "d ago";
+}
+
 function applyTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
   localStorage.setItem("sts_theme", theme);
@@ -40,8 +58,7 @@ function toggleTheme() {
   applyTheme(cur === "light" ? "dark" : "light");
 }
 (function initTheme() {
-  const t = localStorage.getItem("sts_theme") || "light";
-  applyTheme(t);
+  applyTheme(localStorage.getItem("sts_theme") || "light");
 })();
 
 function go(page, slug) {
@@ -51,8 +68,7 @@ function go(page, slug) {
     state.quiz = { name: "", section: "", current: 0, answers: [], startedAt: 0, finished: false, result: null };
   }
   document.querySelectorAll(".main-nav a").forEach(a => a.classList.remove("active"));
-  let navId = page;
-  if (page === "article") navId = "articles";
+  let navId = page === "article" ? "articles" : page;
   const navEl = document.querySelector(`.main-nav a[data-nav="${navId}"]`);
   if (navEl) navEl.classList.add("active");
   $("mainNav").classList.remove("open");
@@ -127,7 +143,7 @@ function render() {
   const page = state.page;
   if (page === "home") app.innerHTML = renderHome();
   else if (page === "articles") app.innerHTML = renderArticles();
-  else if (page === "ad") app.innerHTML = renderAd();
+  else if (page === "ad") app.innerHTML = renderAdComingSoon();
   else if (page === "staff") app.innerHTML = renderStaff();
   else if (page === "contact") app.innerHTML = renderContact();
   else if (page === "admin") renderAdmin();
@@ -183,9 +199,9 @@ function renderHome() {
         <div class="ad-tag">ADVERTISEMENT</div>
         <div class="ad-inner">
           <div class="ad-left">
-            <h3>NeuroLink Mini</h3>
-            <p class="ad-tagline">Think. Connect. Belong.</p>
-            <p class="ad-desc">The first consumer brain-computer interface for everyday life. Control your devices with a thought.</p>
+            <h3>Advertisement</h3>
+            <p class="ad-tagline">Coming Soon</p>
+            <p class="ad-desc">Our sponsored content section is being prepared. Check back soon.</p>
             <button class="btn-outline">Learn more</button>
           </div>
           <div class="ad-right">
@@ -203,7 +219,7 @@ function renderHome() {
     </div>
 
     <div class="newsletter-box">
-      <h3>Join the SciTect Newsletter</h3>
+      <h3>Join the SciTech Newsletter</h3>
       <p>Weekly stories on science, technology, and society.</p>
       <form class="newsletter-form" onsubmit="submitNewsletter(event)">
         <input type="email" id="newsletterEmail" placeholder="your@email.com" required>
@@ -347,14 +363,6 @@ async function renderArticlePage() {
   }
 }
 
-function timeAgo(iso) {
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return "just now";
-  if (s < 3600) return Math.floor(s / 60) + "m ago";
-  if (s < 86400) return Math.floor(s / 3600) + "h ago";
-  return Math.floor(s / 86400) + "d ago";
-}
-
 async function submitComment(e, slug) {
   e.preventDefault();
   const name = $("cName").value.trim();
@@ -377,45 +385,15 @@ function copyLink(url) {
   navigator.clipboard.writeText(url).then(() => toast("success", "Link copied")).catch(() => prompt("Copy:", url));
 }
 
-function renderAd() {
+function renderAdComingSoon() {
   return `
     <div class="section">
-      <div class="ad-page">
-        <div class="ad-page-tag">ADVERTISEMENT · SPONSORED</div>
-        <h1 class="ad-page-title">NeuroLink Mini</h1>
-        <p class="ad-page-tagline">Think. Connect. Belong.</p>
-        <div class="ad-page-hero">
-          <div class="ad-device big">
-            <div class="ad-pulse"></div>
-            <div class="ad-ring r1"></div>
-            <div class="ad-ring r2"></div>
-            <div class="ad-ring r3"></div>
-            <div class="ad-ring r4"></div>
-            <div class="ad-chip"></div>
-          </div>
-        </div>
-        <div class="ad-page-body">
-          <h2>What is NeuroLink Mini?</h2>
-          <p>NeuroLink Mini is the first consumer-grade brain-computer interface designed for everyday life. Worn as a slim band behind the ear, it reads subtle neural signals and translates them into digital actions — no screen, no keyboard, no voice required.</p>
-          <h2>What can it do?</h2>
-          <ul>
-            <li>Control your phone, laptop, and smart home with a thought</li>
-            <li>Send messages to friends without typing or speaking</li>
-            <li>Access focus modes for studying, working, and resting</li>
-            <li>Translate thoughts into text in real time</li>
-          </ul>
-          <h2>Is it safe?</h2>
-          <p>NeuroLink Mini uses non-invasive EEG sensors — no surgery, no implants. It complies with international neural-data protection standards and encrypts all signals end-to-end.</p>
-          <h2>Who is it for?</h2>
-          <p>Students who want to study smarter. Professionals who work with their minds. Creators who want to create faster.</p>
-          <div class="ad-cta">
-            <button class="btn-primary">Pre-order now</button>
-            <span class="ad-price">Starting at ₱24,999</span>
-          </div>
-        </div>
-        <div class="ad-page-footer">
-          <p><b>Disclaimer:</b> NeuroLink Mini is a fictional product created for educational purposes as part of a Science, Technology & Society (STS) project.</p>
-        </div>
+      <div class="coming-soon">
+        <div class="coming-soon-icon">📢</div>
+        <div class="coming-soon-tag">Coming Soon</div>
+        <h2>Advertisement</h2>
+        <p>Our sponsored content section is currently being prepared. Our team is finalizing the advertisement and partner sponsor for this space. Please check back soon.</p>
+        <button class="btn-primary" onclick="go('home')">Back to Home</button>
       </div>
     </div>
   `;
@@ -425,7 +403,7 @@ function renderStaff() {
   return `
     <div class="section">
       <h1 class="page-title">Editorial Staff</h1>
-      <p class="page-sub">The 12 members behind SciTect Knowledge Society.</p>
+      <p class="page-sub">The team behind SciTech Knowledge.</p>
       <div class="staff-grid">
         ${state.staff.map(m => `
           <div class="staff-card">
@@ -448,9 +426,10 @@ function renderContact() {
       <p class="page-sub">Have a story idea, question, or feedback? Send us a message.</p>
       <div class="contact-wrap">
         <form class="contact-card" onsubmit="submitContact(event)">
-          <div class="field"><label>Your Name</label><input id="contactName" required maxlength="80"></div>
-          <div class="field"><label>Email</label><input id="contactEmail" type="email" required maxlength="120"></div>
-          <div class="field"><label>Message</label><textarea id="contactMsg" required maxlength="2000"></textarea></div>
+          <div class="field"><label>Your Name *</label><input id="contactName" required maxlength="80"></div>
+          <div class="field"><label>Email *</label><input id="contactEmail" type="email" required maxlength="120"></div>
+          <div class="field"><label>Subject</label><input id="contactSubject" maxlength="120"></div>
+          <div class="field"><label>Message *</label><textarea id="contactMsg" required maxlength="2000"></textarea></div>
           <button type="submit" class="btn-primary">Send Message</button>
         </form>
       </div>
@@ -462,18 +441,21 @@ async function submitContact(e) {
   e.preventDefault();
   const name = $("contactName").value.trim();
   const email = $("contactEmail").value.trim();
+  const subject = $("contactSubject").value.trim();
   const message = $("contactMsg").value.trim();
+  if (!name || !email || !message) { toast("danger", "Please fill in all required fields"); return; }
   try {
     const res = await fetch(`${API}/api/contact`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, message })
+      body: JSON.stringify({ name, email, subject, message })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Failed");
-    toast("success", "Message sent!");
+    toast("success", "Message sent! We'll get back to you soon.");
     $("contactName").value = "";
     $("contactEmail").value = "";
+    $("contactSubject").value = "";
     $("contactMsg").value = "";
   } catch (err) { toast("danger", err.message); }
 }
@@ -515,6 +497,21 @@ function renderQuiz() {
     return;
   }
 
+  if (!state.questions.length) {
+    app.innerHTML = `
+      <div class="section">
+        <div class="quiz-start">
+          <div class="quiz-start-card">
+            <h2>Quiz unavailable</h2>
+            <p>No questions found in the database. Ask the admin to seed or add questions.</p>
+            <button class="btn-primary" onclick="go('home')">Back to Home</button>
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
   if (q.startedAt === 0) {
     app.innerHTML = `
       <div class="section">
@@ -532,36 +529,8 @@ function renderQuiz() {
     return;
   }
 
-  if (!state.questions.length) {
-    app.innerHTML = `
-      <div class="section">
-        <div class="quiz-start">
-          <div class="quiz-start-card">
-            <h2>Quiz unavailable</h2>
-            <p>No questions found in the database. Please contact the administrator.</p>
-            <button class="btn-primary" onclick="go('home')">Back to Home</button>
-          </div>
-        </div>
-      </div>
-    `;
-    return;
-  }
-
   const item = state.questions[q.current];
-  if (!item) {
-    app.innerHTML = `
-      <div class="section">
-        <div class="quiz-start">
-          <div class="quiz-start-card">
-            <h2>Quiz error</h2>
-            <p>Something went wrong. Please refresh and try again.</p>
-            <button class="btn-primary" onclick="go('quiz')">Restart Quiz</button>
-          </div>
-        </div>
-      </div>
-    `;
-    return;
-  }
+  if (!item) { toast("danger", "Question not found."); go("quiz"); return; }
   const progress = Math.round((q.current / state.questions.length) * 100);
 
   app.innerHTML = `
@@ -573,6 +542,7 @@ function renderQuiz() {
           <span>${esc(q.name)}</span>
         </div>
         <div class="quiz-card">
+          <div class="quiz-type-badge">${item.type === "truefalse" ? "True / False" : "Multiple Choice"}</div>
           <h3>${esc(item.question)}</h3>
           <div id="quizOptions">
             ${item.options.map((opt, i) => `<button class="quiz-option" onclick="answerQuiz(${i})">${esc(opt)}</button>`).join("")}
@@ -585,10 +555,7 @@ function renderQuiz() {
 }
 
 function startQuiz() {
-  if (!state.questions.length) {
-    toast("danger", "No questions available. Please contact the admin.");
-    return;
-  }
+  if (!state.questions.length) { toast("danger", "No questions available. Contact the admin."); return; }
   const name = $("quizName").value.trim();
   const section = $("quizSection").value.trim();
   if (!name) return toast("danger", "Please enter your name.");
@@ -742,6 +709,7 @@ function renderAdmin() {
     `;
     return;
   }
+
   app.innerHTML = `
     <div class="section">
       <div class="admin-wrap">
@@ -753,64 +721,156 @@ function renderAdmin() {
             </div>
           </div>
 
-          <div class="admin-form" id="articleForm">
-            <h3 id="formTitle">New Article</h3>
-            <div class="row">
-              <div class="field"><label>Title</label><input id="fTitle"></div>
-              <div class="field"><label>Tag</label><input id="fTag" placeholder="e.g. Climate"></div>
-            </div>
-            <div class="row">
-              <div class="field"><label>Author</label><input id="fAuthor" value="Member 1"></div>
-              <div class="field"><label>Read Time (min)</label><input id="fReadTime" type="number" value="5"></div>
-            </div>
-            <div class="field"><label>Hero Image URL</label><input id="fHeroImage" placeholder="https://..."></div>
-            <div class="field"><label>Excerpt</label><textarea id="fExcerpt" style="min-height:80px;"></textarea></div>
-            <div class="field"><label>Body (HTML allowed)</label><textarea id="fBody"></textarea></div>
-            <div class="field"><label>References</label><textarea id="fReferences" style="min-height:80px;"></textarea></div>
-            <div class="row">
-              <div class="field"><label><input type="checkbox" id="fHeadline" style="width:auto;"> Make Headline</label></div>
-              <div class="field"><label>Status</label>
-                <select id="fStatus"><option value="published">Published</option><option value="draft">Draft</option></select>
-              </div>
-            </div>
-            <div class="admin-form-actions">
-              <button class="btn-primary" onclick="saveArticle()">Save</button>
-              <button class="admin-btn" onclick="closeArticleForm()">Cancel</button>
-            </div>
+          <div class="admin-tabs">
+            <button class="admin-tab ${state.adminTab === 'articles' ? 'active' : ''}" onclick="switchAdminTab('articles')">
+              📰 Articles <span class="tab-count" id="tabCountArticles">0</span>
+            </button>
+            <button class="admin-tab ${state.adminTab === 'questions' ? 'active' : ''}" onclick="switchAdminTab('questions')">
+              ❓ Questions <span class="tab-count" id="tabCountQuestions">0</span>
+            </button>
+            <button class="admin-tab ${state.adminTab === 'staff' ? 'active' : ''}" onclick="switchAdminTab('staff')">
+              👥 Staff <span class="tab-count" id="tabCountStaff">0</span>
+            </button>
+            <button class="admin-tab ${state.adminTab === 'messages' ? 'active' : ''}" onclick="switchAdminTab('messages')">
+              ✉️ Messages <span class="count-badge hidden" id="tabCountMessages">0</span>
+            </button>
+            <button class="admin-tab ${state.adminTab === 'comments' ? 'active' : ''}" onclick="switchAdminTab('comments')">
+              💬 Comments <span class="tab-count" id="tabCountComments">0</span>
+            </button>
+            <button class="admin-tab ${state.adminTab === 'subscribers' ? 'active' : ''}" onclick="switchAdminTab('subscribers')">
+              📧 Subscribers <span class="tab-count" id="tabCountSubscribers">0</span>
+            </button>
           </div>
 
-          <div class="admin-head" style="margin-bottom:12px;">
-            <h3 style="font-size:1.1rem;">Articles</h3>
-            <button class="btn-primary" onclick="openArticleForm()">+ New Article</button>
-          </div>
-          <div class="admin-list" id="adminArticles">Loading…</div>
+          <div id="adminContent"></div>
         </div>
       </div>
     </div>
   `;
-  loadAdminArticles();
+  renderAdminTab();
 }
 
-async function adminLogin() {
-  const pwd = $("adminPwd").value;
-  try {
-    const res = await fetch(`${API}/api/admin/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: pwd })
-    });
-    if (!res.ok) throw new Error("Wrong password");
-    state.adminPass = pwd;
-    sessionStorage.setItem("sts_admin_pass", pwd);
-    toast("success", "Logged in");
-    renderAdmin();
-  } catch (err) { toast("danger", err.message); }
+function switchAdminTab(tab) {
+  state.adminTab = tab;
+  document.querySelectorAll(".admin-tab").forEach(t => t.classList.remove("active"));
+  event.target.closest(".admin-tab").classList.add("active");
+  renderAdminTab();
 }
 
-function adminLogout() {
-  state.adminPass = "";
-  sessionStorage.removeItem("sts_admin_pass");
-  renderAdmin();
+async function renderAdminTab() {
+  const c = $("adminContent");
+  if (!c) return;
+
+  if (state.adminTab === "articles") {
+    c.innerHTML = `
+      <div class="admin-head" style="margin-bottom:12px;">
+        <h3 style="font-size:1.1rem;">Articles</h3>
+        <button class="btn-primary" onclick="openArticleForm()">+ New Article</button>
+      </div>
+      <div class="admin-form" id="articleForm">
+        <h3 id="formTitle">New Article</h3>
+        <div class="row">
+          <div class="field"><label>Title</label><input id="fTitle"></div>
+          <div class="field"><label>Tag</label><input id="fTag" placeholder="e.g. Climate"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Author</label><input id="fAuthor" value="Member 1"></div>
+          <div class="field"><label>Read Time (min)</label><input id="fReadTime" type="number" value="5"></div>
+        </div>
+        <div class="field"><label>Hero Image URL</label><input id="fHeroImage" placeholder="https://..."></div>
+        <div class="field"><label>Excerpt</label><textarea id="fExcerpt" class="short"></textarea></div>
+        <div class="field"><label>Body (HTML allowed)</label><textarea id="fBody"></textarea></div>
+        <div class="field"><label>References</label><textarea id="fReferences" class="short"></textarea></div>
+        <div class="row">
+          <div class="field"><label><input type="checkbox" id="fHeadline" style="width:auto;"> Make Headline</label></div>
+          <div class="field"><label>Status</label>
+            <select id="fStatus"><option value="published">Published</option><option value="draft">Draft</option></select>
+          </div>
+        </div>
+        <div class="admin-form-actions">
+          <button class="btn-primary" onclick="saveArticle()">Save</button>
+          <button class="admin-btn" onclick="closeArticleForm()">Cancel</button>
+        </div>
+      </div>
+      <div class="admin-list" id="adminArticles">Loading…</div>
+    `;
+    await loadAdminArticles();
+  }
+
+  else if (state.adminTab === "questions") {
+    c.innerHTML = `
+      <div class="admin-head" style="margin-bottom:12px;">
+        <h3 style="font-size:1.1rem;">Quiz Questions</h3>
+        <button class="btn-primary" onclick="openQuestionForm()">+ New Question</button>
+      </div>
+      <div class="admin-form" id="questionForm">
+        <h3 id="qFormTitle">New Question</h3>
+        <div class="field">
+          <label>Question Type</label>
+          <select id="qType" onchange="onQuestionTypeChange()">
+            <option value="abcd">Multiple Choice (ABCD)</option>
+            <option value="truefalse">True / False</option>
+          </select>
+        </div>
+        <div class="field"><label>Question Text</label><textarea id="qText" class="short"></textarea></div>
+        <div class="field">
+          <label>Options (select the correct answer)</label>
+          <div class="q-options-list" id="qOptionsList"></div>
+        </div>
+        <div class="field"><label>Explanation</label><textarea id="qExplanation" class="short"></textarea></div>
+        <div class="field"><label>Order</label><input id="qOrder" type="number" value="99"></div>
+        <div class="admin-form-actions">
+          <button class="btn-primary" onclick="saveQuestion()">Save</button>
+          <button class="admin-btn" onclick="closeQuestionForm()">Cancel</button>
+        </div>
+      </div>
+      <div class="admin-list" id="adminQuestions">Loading…</div>
+    `;
+    await loadAdminQuestions();
+  }
+
+  else if (state.adminTab === "staff") {
+    c.innerHTML = `
+      <div class="admin-head" style="margin-bottom:12px;">
+        <h3 style="font-size:1.1rem;">Staff / Team Members</h3>
+        <button class="btn-primary" onclick="openStaffForm()">+ New Member</button>
+      </div>
+      <div class="admin-form" id="staffForm">
+        <h3 id="sFormTitle">New Member</h3>
+        <div class="row">
+          <div class="field"><label>Name</label><input id="sName"></div>
+          <div class="field"><label>Section</label><input id="sSection" placeholder="BSIT 3-A"></div>
+        </div>
+        <div class="field"><label>Role</label><input id="sRole" placeholder="Staff Writer, Editor, Designer..."></div>
+        <div class="field"><label>Bio</label><textarea id="sBio" class="short"></textarea></div>
+        <div class="row">
+          <div class="field"><label>Avatar URL (optional)</label><input id="sAvatar" placeholder="https://..."></div>
+          <div class="field"><label>Order</label><input id="sOrder" type="number" value="99"></div>
+        </div>
+        <div class="admin-form-actions">
+          <button class="btn-primary" onclick="saveStaff()">Save</button>
+          <button class="admin-btn" onclick="closeStaffForm()">Cancel</button>
+        </div>
+      </div>
+      <div class="admin-list" id="adminStaff">Loading…</div>
+    `;
+    await loadAdminStaff();
+  }
+
+  else if (state.adminTab === "messages") {
+    c.innerHTML = `<div class="admin-list" id="adminMessages">Loading…</div>`;
+    await loadAdminMessages();
+  }
+
+  else if (state.adminTab === "comments") {
+    c.innerHTML = `<div class="admin-list" id="adminComments">Loading…</div>`;
+    await loadAdminComments();
+  }
+
+  else if (state.adminTab === "subscribers") {
+    c.innerHTML = `<div class="admin-list" id="adminSubscribers">Loading…</div>`;
+    await loadAdminSubscribers();
+  }
 }
 
 async function loadAdminArticles() {
@@ -822,6 +882,9 @@ async function loadAdminArticles() {
     if (!res.ok) throw new Error("Session expired");
     const data = await res.json();
     const list = data.articles || [];
+    state.adminArticles = list;
+    const badge = $("tabCountArticles");
+    if (badge) badge.textContent = list.length;
     c.innerHTML = list.map(a => `
       <div class="admin-item">
         <div>
@@ -834,7 +897,6 @@ async function loadAdminArticles() {
         </div>
       </div>
     `).join("") || '<p style="color:var(--muted);">No articles yet.</p>';
-    window._adminArticles = list;
   } catch (err) {
     c.innerHTML = `<p style="color:#b91c1c;">${esc(err.message)}</p>`;
   }
@@ -857,7 +919,7 @@ function closeArticleForm() {
 }
 
 function editArticle(id) {
-  const a = (window._adminArticles || []).find(x => x._id === id);
+  const a = state.adminArticles.find(x => x._id === id);
   if (!a) return;
   state.editingArticleId = id;
   $("formTitle").textContent = "Edit Article";
@@ -920,6 +982,414 @@ async function deleteArticle(id) {
     loadAdminArticles();
     await loadData();
   } catch (err) { toast("danger", err.message); }
+}
+
+async function loadAdminQuestions() {
+  const c = $("adminQuestions");
+  try {
+    const res = await fetch(`${API}/api/admin/questions`, {
+      headers: { "x-admin-password": state.adminPass }
+    });
+    if (!res.ok) throw new Error("Session expired");
+    const data = await res.json();
+    const list = data.questions || [];
+    state.adminQuestions = list;
+    const badge = $("tabCountQuestions");
+    if (badge) badge.textContent = list.length;
+    c.innerHTML = list.map(q => `
+      <div class="admin-item">
+        <div style="flex:1;">
+          <h4>${esc(q.question)}</h4>
+          <small>${q.type === 'truefalse' ? 'True/False' : 'Multiple Choice'} · Correct: ${esc(q.options[q.correctIndex] || '')}</small>
+        </div>
+        <div class="admin-actions">
+          <button class="admin-btn" onclick="editQuestion('${q._id}')">Edit</button>
+          <button class="admin-btn danger" onclick="deleteQuestion('${q._id}')">Delete</button>
+        </div>
+      </div>
+    `).join("") || '<p style="color:var(--muted);">No questions yet.</p>';
+  } catch (err) {
+    c.innerHTML = `<p style="color:#b91c1c;">${esc(err.message)}</p>`;
+  }
+}
+
+function openQuestionForm() {
+  state.editingQuestionId = null;
+  $("qFormTitle").textContent = "New Question";
+  $("qType").value = "abcd";
+  $("qText").value = "";
+  $("qExplanation").value = "";
+  $("qOrder").value = "99";
+  renderQuestionOptions([]);
+  $("questionForm").classList.add("show");
+}
+
+function closeQuestionForm() {
+  $("questionForm").classList.remove("show");
+  state.editingQuestionId = null;
+}
+
+function onQuestionTypeChange() {
+  const type = $("qType").value;
+  if (type === "truefalse") {
+    renderQuestionOptions(["True", "False"], 0);
+  } else {
+    renderQuestionOptions(["", "", "", ""], 0);
+  }
+}
+
+function renderQuestionOptions(values, correctIndex = 0) {
+  const wrap = $("qOptionsList");
+  if (!wrap) return;
+  const type = $("qType").value;
+  const count = type === "truefalse" ? 2 : 4;
+  const opts = values.length === count ? values : (type === "truefalse" ? ["True", "False"] : ["", "", "", ""]);
+  let html = "";
+  for (let i = 0; i < count; i++) {
+    const readOnly = type === "truefalse" ? "readonly" : "";
+    html += `
+      <div class="q-option-row">
+        <input type="radio" name="qCorrect" value="${i}" ${i === correctIndex ? "checked" : ""}>
+        <input type="text" class="q-opt-input" data-idx="${i}" value="${esc(opts[i] || "")}" placeholder="Option ${String.fromCharCode(65 + i)}" ${readOnly}>
+      </div>
+    `;
+  }
+  wrap.innerHTML = html;
+}
+
+function editQuestion(id) {
+  const q = state.adminQuestions.find(x => x._id === id);
+  if (!q) return;
+  state.editingQuestionId = id;
+  $("qFormTitle").textContent = "Edit Question";
+  $("qType").value = q.type || "abcd";
+  $("qText").value = q.question || "";
+  $("qExplanation").value = q.explanation || "";
+  $("qOrder").value = q.order || 99;
+  renderQuestionOptions(q.options || [], q.correctIndex || 0);
+  $("questionForm").classList.add("show");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+async function saveQuestion() {
+  const type = $("qType").value;
+  const question = $("qText").value.trim();
+  const explanation = $("qExplanation").value.trim();
+  const order = parseInt($("qOrder").value) || 99;
+
+  if (!question) return toast("danger", "Question text required");
+
+  const optionInputs = document.querySelectorAll(".q-opt-input");
+  const options = Array.from(optionInputs).map(inp => inp.value.trim());
+
+  const checked = document.querySelector('input[name="qCorrect"]:checked');
+  if (!checked) return toast("danger", "Select the correct answer");
+  const correctIndex = parseInt(checked.value);
+
+  if (options.some(o => !o)) return toast("danger", "All options must be filled");
+
+  const body = { type, question, options, correctIndex, explanation, order };
+
+  try {
+    const url = state.editingQuestionId
+      ? `${API}/api/admin/questions/${state.editingQuestionId}`
+      : `${API}/api/admin/questions`;
+    const method = state.editingQuestionId ? "PUT" : "POST";
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json", "x-admin-password": state.adminPass },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed");
+    toast("success", state.editingQuestionId ? "Question updated" : "Question created");
+    closeQuestionForm();
+    loadAdminQuestions();
+    await loadData();
+  } catch (err) { toast("danger", err.message); }
+}
+
+async function deleteQuestion(id) {
+  if (!confirm("Delete this question?")) return;
+  try {
+    const res = await fetch(`${API}/api/admin/questions/${id}`, {
+      method: "DELETE",
+      headers: { "x-admin-password": state.adminPass }
+    });
+    if (!res.ok) throw new Error("Failed");
+    toast("success", "Deleted");
+    loadAdminQuestions();
+    await loadData();
+  } catch (err) { toast("danger", err.message); }
+}
+
+async function loadAdminStaff() {
+  const c = $("adminStaff");
+  try {
+    const res = await fetch(`${API}/api/admin/staff`, {
+      headers: { "x-admin-password": state.adminPass }
+    });
+    if (!res.ok) throw new Error("Session expired");
+    const data = await res.json();
+    const list = data.staff || [];
+    state.adminStaff = list;
+    const badge = $("tabCountStaff");
+    if (badge) badge.textContent = list.length;
+    c.innerHTML = list.map(m => `
+      <div class="admin-item">
+        <div style="display:flex; gap:12px; align-items:center; flex:1;">
+          <img src="${esc(m.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.name)}&size=80&background=0ea5e9&color=fff`)}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;">
+          <div>
+            <h4>${esc(m.name)}</h4>
+            <small>${esc(m.role)} · ${esc(m.section)}</small>
+          </div>
+        </div>
+        <div class="admin-actions">
+          <button class="admin-btn" onclick="editStaff('${m._id}')">Edit</button>
+          <button class="admin-btn danger" onclick="deleteStaff('${m._id}')">Delete</button>
+        </div>
+      </div>
+    `).join("") || '<p style="color:var(--muted);">No staff yet.</p>';
+  } catch (err) {
+    c.innerHTML = `<p style="color:#b91c1c;">${esc(err.message)}</p>`;
+  }
+}
+
+function openStaffForm() {
+  state.editingStaffId = null;
+  $("sFormTitle").textContent = "New Member";
+  ["sName", "sSection", "sRole", "sBio", "sAvatar"].forEach(id => $(id).value = "");
+  $("sOrder").value = "99";
+  $("staffForm").classList.add("show");
+}
+
+function closeStaffForm() {
+  $("staffForm").classList.remove("show");
+  state.editingStaffId = null;
+}
+
+function editStaff(id) {
+  const m = state.adminStaff.find(x => x._id === id);
+  if (!m) return;
+  state.editingStaffId = id;
+  $("sFormTitle").textContent = "Edit Member";
+  $("sName").value = m.name || "";
+  $("sSection").value = m.section || "";
+  $("sRole").value = m.role || "";
+  $("sBio").value = m.bio || "";
+  $("sAvatar").value = m.avatar || "";
+  $("sOrder").value = m.order || 99;
+  $("staffForm").classList.add("show");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+async function saveStaff() {
+  const body = {
+    name: $("sName").value.trim(),
+    section: $("sSection").value.trim(),
+    role: $("sRole").value.trim(),
+    bio: $("sBio").value.trim(),
+    avatar: $("sAvatar").value.trim(),
+    order: parseInt($("sOrder").value) || 99
+  };
+  if (!body.name) return toast("danger", "Name required");
+  if (!body.role) return toast("danger", "Role required");
+  try {
+    const url = state.editingStaffId
+      ? `${API}/api/admin/staff/${state.editingStaffId}`
+      : `${API}/api/admin/staff`;
+    const method = state.editingStaffId ? "PUT" : "POST";
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json", "x-admin-password": state.adminPass },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed");
+    toast("success", state.editingStaffId ? "Member updated" : "Member added");
+    closeStaffForm();
+    loadAdminStaff();
+    await loadData();
+  } catch (err) { toast("danger", err.message); }
+}
+
+async function deleteStaff(id) {
+  if (!confirm("Delete this member?")) return;
+  try {
+    const res = await fetch(`${API}/api/admin/staff/${id}`, {
+      method: "DELETE",
+      headers: { "x-admin-password": state.adminPass }
+    });
+    if (!res.ok) throw new Error("Failed");
+    toast("success", "Deleted");
+    loadAdminStaff();
+    await loadData();
+  } catch (err) { toast("danger", err.message); }
+}
+
+async function loadAdminMessages() {
+  const c = $("adminMessages");
+  try {
+    const res = await fetch(`${API}/api/admin/messages`, {
+      headers: { "x-admin-password": state.adminPass }
+    });
+    if (!res.ok) throw new Error("Session expired");
+    const data = await res.json();
+    const list = data.messages || [];
+    state.adminMessages = list;
+    const unread = list.filter(m => !m.read).length;
+    const badge = $("tabCountMessages");
+    if (badge) {
+      badge.textContent = unread;
+      badge.classList.toggle("hidden", unread === 0);
+    }
+    c.innerHTML = list.map(m => `
+      <div class="admin-item ${m.read ? 'read' : 'unread'}">
+        <div style="flex:1;">
+          <h4>${esc(m.subject || '(no subject)')}</h4>
+          <small><b>${esc(m.name)}</b> · ${esc(m.email)} · ${timeAgo(m.createdAt)}</small>
+          <div class="message-preview">${esc(m.message)}</div>
+        </div>
+        <div class="admin-actions">
+          ${!m.read ? `<button class="admin-btn primary" onclick="markMessageRead('${m._id}')">Mark read</button>` : ''}
+          <a class="admin-btn" href="mailto:${esc(m.email)}?subject=Re: ${encodeURIComponent(m.subject || 'Your message')}">Reply</a>
+          <button class="admin-btn danger" onclick="deleteMessage('${m._id}')">Delete</button>
+        </div>
+      </div>
+    `).join("") || '<p style="color:var(--muted);">No messages yet.</p>';
+  } catch (err) {
+    c.innerHTML = `<p style="color:#b91c1c;">${esc(err.message)}</p>`;
+  }
+}
+
+async function markMessageRead(id) {
+  try {
+    const res = await fetch(`${API}/api/admin/messages/${id}/read`, {
+      method: "PUT",
+      headers: { "x-admin-password": state.adminPass }
+    });
+    if (!res.ok) throw new Error("Failed");
+    toast("success", "Marked as read");
+    loadAdminMessages();
+  } catch (err) { toast("danger", err.message); }
+}
+
+async function deleteMessage(id) {
+  if (!confirm("Delete this message?")) return;
+  try {
+    const res = await fetch(`${API}/api/admin/messages/${id}`, {
+      method: "DELETE",
+      headers: { "x-admin-password": state.adminPass }
+    });
+    if (!res.ok) throw new Error("Failed");
+    toast("success", "Deleted");
+    loadAdminMessages();
+  } catch (err) { toast("danger", err.message); }
+}
+
+async function loadAdminComments() {
+  const c = $("adminComments");
+  try {
+    const res = await fetch(`${API}/api/admin/comments`, {
+      headers: { "x-admin-password": state.adminPass }
+    });
+    if (!res.ok) throw new Error("Session expired");
+    const data = await res.json();
+    const list = data.comments || [];
+    state.adminComments = list;
+    const badge = $("tabCountComments");
+    if (badge) badge.textContent = list.length;
+    c.innerHTML = list.map(m => `
+      <div class="admin-item">
+        <div style="flex:1;">
+          <h4>${esc(m.name || 'Anonymous')} <small style="font-weight:normal;">on "${esc(m.articleSlug)}"</small></h4>
+          <small>${timeAgo(m.createdAt)}</small>
+          <div class="message-preview">${esc(m.text)}</div>
+        </div>
+        <div class="admin-actions">
+          <button class="admin-btn danger" onclick="deleteCommentAdmin('${m._id}')">Delete</button>
+        </div>
+      </div>
+    `).join("") || '<p style="color:var(--muted);">No comments yet.</p>';
+  } catch (err) {
+    c.innerHTML = `<p style="color:#b91c1c;">${esc(err.message)}</p>`;
+  }
+}
+
+async function deleteCommentAdmin(id) {
+  if (!confirm("Delete this comment?")) return;
+  try {
+    const res = await fetch(`${API}/api/admin/comments/${id}`, {
+      method: "DELETE",
+      headers: { "x-admin-password": state.adminPass }
+    });
+    if (!res.ok) throw new Error("Failed");
+    toast("success", "Deleted");
+    loadAdminComments();
+  } catch (err) { toast("danger", err.message); }
+}
+
+async function loadAdminSubscribers() {
+  const c = $("adminSubscribers");
+  try {
+    const res = await fetch(`${API}/api/admin/newsletter`, {
+      headers: { "x-admin-password": state.adminPass }
+    });
+    if (!res.ok) throw new Error("Session expired");
+    const data = await res.json();
+    const list = data.subscribers || [];
+    state.adminSubscribers = list;
+    const badge = $("tabCountSubscribers");
+    if (badge) badge.textContent = list.length;
+    c.innerHTML = list.map(s => `
+      <div class="admin-item">
+        <div style="flex:1;">
+          <h4>${esc(s.email)}</h4>
+          <small>Subscribed ${timeAgo(s.createdAt)}</small>
+        </div>
+        <div class="admin-actions">
+          <button class="admin-btn danger" onclick="deleteSubscriber('${s._id}')">Remove</button>
+        </div>
+      </div>
+    `).join("") || '<p style="color:var(--muted);">No subscribers yet.</p>';
+  } catch (err) {
+    c.innerHTML = `<p style="color:#b91c1c;">${esc(err.message)}</p>`;
+  }
+}
+
+async function deleteSubscriber(id) {
+  if (!confirm("Remove this subscriber?")) return;
+  try {
+    const res = await fetch(`${API}/api/admin/newsletter/${id}`, {
+      method: "DELETE",
+      headers: { "x-admin-password": state.adminPass }
+    });
+    if (!res.ok) throw new Error("Failed");
+    toast("success", "Removed");
+    loadAdminSubscribers();
+  } catch (err) { toast("danger", err.message); }
+}
+
+async function adminLogin() {
+  const pwd = $("adminPwd").value;
+  try {
+    const res = await fetch(`${API}/api/admin/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pwd })
+    });
+    if (!res.ok) throw new Error("Wrong password");
+    state.adminPass = pwd;
+    sessionStorage.setItem("sts_admin_pass", pwd);
+    toast("success", "Logged in");
+    renderAdmin();
+  } catch (err) { toast("danger", err.message); }
+}
+
+function adminLogout() {
+  state.adminPass = "";
+  sessionStorage.removeItem("sts_admin_pass");
+  renderAdmin();
 }
 
 window.addEventListener("scroll", () => {
