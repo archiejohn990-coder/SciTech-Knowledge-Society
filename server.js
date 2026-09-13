@@ -2,11 +2,13 @@ const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const path = require("path");
+const { exec } = require("child_process");
 require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "scitect2026";
+const SEED_KEY = "scitect-setup-2026";
 
 app.use(cors({ origin: "*" }));
 app.use(express.json({ limit: "10mb" }));
@@ -117,7 +119,14 @@ function badgeFor(pct) {
   return "Explorer";
 }
 
-// Articles
+app.get("/api/run-seed-once", (req, res) => {
+  if (req.query.key !== SEED_KEY) return res.status(403).send("Forbidden");
+  exec("node seed.js", { cwd: __dirname }, (err, stdout, stderr) => {
+    if (err) return res.status(500).send("<pre>Seed failed:\n" + (stderr || err.message) + "</pre>");
+    res.send("<pre>Seed complete:\n\n" + stdout + "</pre>");
+  });
+});
+
 app.get("/api/articles", async (req, res) => {
   try {
     const filter = { status: "published" };
@@ -165,10 +174,7 @@ app.post("/api/admin/articles", requireAdmin, async (req, res) => {
 
     const existing = await Article.findOne({ slug: data.slug });
     if (existing) return res.status(400).json({ error: "Slug already exists" });
-
-    if (data.isHeadline) {
-      await Article.updateMany({}, { isHeadline: false });
-    }
+    if (data.isHeadline) await Article.updateMany({}, { isHeadline: false });
 
     const article = await Article.create(data);
     res.json({ success: true, article });
@@ -180,11 +186,7 @@ app.put("/api/admin/articles/:id", requireAdmin, async (req, res) => {
     const data = { ...req.body };
     if (!data.slug && data.title) data.slug = slugify(data.title);
     data.updatedAt = new Date();
-
-    if (data.isHeadline) {
-      await Article.updateMany({ _id: { $ne: req.params.id } }, { isHeadline: false });
-    }
-
+    if (data.isHeadline) await Article.updateMany({ _id: { $ne: req.params.id } }, { isHeadline: false });
     const article = await Article.findByIdAndUpdate(req.params.id, data, { new: true });
     if (!article) return res.status(404).json({ error: "Not found" });
     res.json({ success: true, article });
@@ -198,7 +200,6 @@ app.delete("/api/admin/articles/:id", requireAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Staff
 app.get("/api/staff", async (req, res) => {
   try {
     const list = await Member.find().sort({ order: 1 });
@@ -228,13 +229,11 @@ app.delete("/api/admin/staff/:id", requireAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Search (unified)
 app.get("/api/search", async (req, res) => {
   try {
     const q = String(req.query.q || "").trim();
     if (!q) return res.json({ success: true, results: { articles: [], staff: [], questions: [] } });
     const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-
     const [articles, staff, questions] = await Promise.all([
       Article.find({ status: "published", $or: [{ title: rx }, { excerpt: rx }, { tag: rx }] }).limit(8),
       Member.find({ $or: [{ name: rx }, { role: rx }, { section: rx }] }).limit(8),
@@ -244,7 +243,6 @@ app.get("/api/search", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Quiz
 app.get("/api/quiz", async (req, res) => {
   try {
     const list = await Question.find().sort({ order: 1 });
@@ -267,22 +265,12 @@ app.post("/api/quiz/check", async (req, res) => {
       const given = answers[i];
       const correct = given === q.correctIndex;
       if (correct) score++;
-      return {
-        question: q.question,
-        given,
-        correct,
-        correctIndex: q.correctIndex,
-        explanation: q.explanation
-      };
+      return { question: q.question, given, correct, correctIndex: q.correctIndex, explanation: q.explanation };
     });
     const percentage = Math.round((score / questions.length) * 100);
     res.json({
-      success: true,
-      score,
-      total: questions.length,
-      percentage,
-      badge: badgeFor(percentage),
-      details
+      success: true, score, total: questions.length, percentage,
+      badge: badgeFor(percentage), details
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -298,9 +286,7 @@ app.post("/api/quiz/score", async (req, res) => {
     const entry = await Score.create({
       name: name.trim().slice(0, 60),
       section: section.trim().slice(0, 60),
-      score,
-      total,
-      percentage,
+      score, total, percentage,
       duration: duration || 0,
       badge: badgeFor(percentage)
     });
@@ -310,19 +296,15 @@ app.post("/api/quiz/score", async (req, res) => {
 
 app.get("/api/quiz/leaderboard", async (req, res) => {
   try {
-    const list = await Score.find()
-      .sort({ percentage: -1, duration: 1, createdAt: -1 })
-      .limit(20);
+    const list = await Score.find().sort({ percentage: -1, duration: 1, createdAt: -1 }).limit(20);
     res.json({ success: true, leaderboard: list });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Comments
 app.get("/api/comments/:slug", async (req, res) => {
   try {
     const list = await Comment.find({ articleSlug: req.params.slug, approved: true })
-      .sort({ createdAt: -1 })
-      .limit(100);
+      .sort({ createdAt: -1 }).limit(100);
     res.json({ success: true, comments: list });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -341,14 +323,6 @@ app.post("/api/comments/:slug", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.delete("/api/admin/comments/:id", requireAdmin, async (req, res) => {
-  try {
-    await Comment.findByIdAndDelete(req.params.id);
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// Newsletter
 app.post("/api/newsletter", async (req, res) => {
   try {
     const email = String(req.body.email || "").trim().toLowerCase();
@@ -360,7 +334,6 @@ app.post("/api/newsletter", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Contact
 app.post("/api/contact", async (req, res) => {
   try {
     const { name, email, message } = req.body;
@@ -375,7 +348,6 @@ app.post("/api/contact", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Admin login
 app.post("/api/admin/login", (req, res) => {
   const pass = req.body.password;
   if (pass === ADMIN_PASSWORD) return res.json({ success: true });
