@@ -3,6 +3,7 @@ let state = {
   articles: [],
   staff: [],
   questions: [],
+  ad: null,
   page: "home",
   activeArticleSlug: null,
   related: [],
@@ -19,6 +20,7 @@ let state = {
   adminMessages: [],
   adminComments: [],
   adminSubscribers: [],
+  adminAd: null,
   unreadCount: 0,
   quiz: {
     name: "", section: "", current: 0, answers: [],
@@ -104,7 +106,7 @@ async function runSearch() {
       r.articles.forEach(a => { html += `<a onclick="searchPick('${a.slug}')">${esc(a.title)} <b>· ${esc(a.tag)}</b></a>`; });
     }
     if (r.staff?.length) {
-      html += `<div class="search-section">Staff</div>`;
+      html += `<div class="search-section">Team</div>`;
       r.staff.forEach(m => { html += `<a onclick="go('staff')">${esc(m.name)} <b>· ${esc(m.role)}</b></a>`; });
     }
     if (r.questions?.length) {
@@ -127,14 +129,16 @@ function searchPick(slug) {
 
 async function loadData() {
   try {
-    const [aRes, sRes, qRes] = await Promise.all([
+    const [aRes, sRes, qRes, adRes] = await Promise.all([
       fetch(`${API}/api/articles`).then(r => r.json()),
       fetch(`${API}/api/staff`).then(r => r.json()),
-      fetch(`${API}/api/quiz`).then(r => r.json())
+      fetch(`${API}/api/quiz`).then(r => r.json()),
+      fetch(`${API}/api/ad`).then(r => r.json())
     ]);
     state.articles = aRes.articles || [];
     state.staff = sRes.staff || [];
     state.questions = qRes.questions || [];
+    state.ad = adRes.ad || null;
   } catch (err) { console.error("Load error:", err); }
 }
 
@@ -143,7 +147,7 @@ function render() {
   const page = state.page;
   if (page === "home") app.innerHTML = renderHome();
   else if (page === "articles") app.innerHTML = renderArticles();
-  else if (page === "ad") app.innerHTML = renderAdComingSoon();
+  else if (page === "ad") app.innerHTML = renderAd();
   else if (page === "staff") app.innerHTML = renderStaff();
   else if (page === "contact") app.innerHTML = renderContact();
   else if (page === "admin") renderAdmin();
@@ -195,6 +199,24 @@ function renderHome() {
 
     <div class="section">
       <div class="section-head"><h2>Sponsored</h2></div>
+      ${renderAdCard()}
+    </div>
+
+    <div class="newsletter-box">
+      <h3>Join the SciTech Newsletter</h3>
+      <p>Weekly stories on science and technology.</p>
+      <form class="newsletter-form" onsubmit="submitNewsletter(event)">
+        <input type="email" id="newsletterEmail" placeholder="your@email.com" required>
+        <button type="submit">Subscribe</button>
+      </form>
+    </div>
+  `;
+}
+
+function renderAdCard() {
+  const ad = state.ad;
+  if (!ad || !ad.active) {
+    return `
       <div class="ad-card" onclick="go('ad')">
         <div class="ad-tag">ADVERTISEMENT</div>
         <div class="ad-inner">
@@ -216,15 +238,32 @@ function renderHome() {
         </div>
         <div class="ad-disclaimer">Paid sponsored content — read our editorial policy</div>
       </div>
-    </div>
+    `;
+  }
 
-    <div class="newsletter-box">
-      <h3>Join the SciTech Newsletter</h3>
-      <p>Weekly stories on science, technology, and society.</p>
-      <form class="newsletter-form" onsubmit="submitNewsletter(event)">
-        <input type="email" id="newsletterEmail" placeholder="your@email.com" required>
-        <button type="submit">Subscribe</button>
-      </form>
+  return `
+    <div class="ad-card" onclick="go('ad')">
+      <div class="ad-tag">ADVERTISEMENT</div>
+      <div class="ad-inner">
+        <div class="ad-left">
+          <h3>${esc(ad.title || "Sponsored")}</h3>
+          ${ad.tagline ? `<p class="ad-tagline">${esc(ad.tagline)}</p>` : ""}
+          ${ad.description ? `<p class="ad-desc">${esc(ad.description)}</p>` : ""}
+          <button class="btn-outline">${esc(ad.buttonText || "Learn more")}</button>
+        </div>
+        <div class="ad-right">
+          ${ad.image
+            ? `<img src="${esc(ad.image)}" style="width:100%; max-width:240px; border-radius:16px;">`
+            : `<div class="ad-device">
+                 <div class="ad-pulse"></div>
+                 <div class="ad-ring r1"></div>
+                 <div class="ad-ring r2"></div>
+                 <div class="ad-ring r3"></div>
+                 <div class="ad-chip"></div>
+               </div>`}
+        </div>
+      </div>
+      <div class="ad-disclaimer">Paid sponsored content — read our editorial policy</div>
     </div>
   `;
 }
@@ -254,7 +293,7 @@ function renderArticles() {
   return `
     <div class="section">
       <h1 class="page-title">All Articles</h1>
-      <p class="page-sub">Stories on science, technology, and the society that shapes them.</p>
+      <p class="page-sub">Stories on science and technology.</p>
 
       <div class="filter-row">
         ${tags.map(t => `<button class="filter-chip ${state.filterTag === t ? 'active' : ''}" onclick="filterByTag('${esc(t)}')">${t ? esc(t) : 'All'}</button>`).join("")}
@@ -385,15 +424,40 @@ function copyLink(url) {
   navigator.clipboard.writeText(url).then(() => toast("success", "Link copied")).catch(() => prompt("Copy:", url));
 }
 
-function renderAdComingSoon() {
+function renderAd() {
+  const ad = state.ad;
+  if (!ad || !ad.active) {
+    return `
+      <div class="section">
+        <div class="coming-soon">
+          <div class="coming-soon-icon">📢</div>
+          <div class="coming-soon-tag">Coming Soon</div>
+          <h2>Advertisement</h2>
+          <p>Our sponsored content section is currently being prepared. Please check back soon.</p>
+          <button class="btn-primary" onclick="go('home')">Back to Home</button>
+        </div>
+      </div>
+    `;
+  }
+
   return `
     <div class="section">
-      <div class="coming-soon">
-        <div class="coming-soon-icon">📢</div>
-        <div class="coming-soon-tag">Coming Soon</div>
-        <h2>Advertisement</h2>
-        <p>Our sponsored content section is currently being prepared. Our team is finalizing the advertisement and partner sponsor for this space. Please check back soon.</p>
-        <button class="btn-primary" onclick="go('home')">Back to Home</button>
+      <div class="ad-page">
+        <div class="ad-page-tag">ADVERTISEMENT · SPONSORED</div>
+        ${ad.image ? `<img class="ad-image" src="${esc(ad.image)}" alt="${esc(ad.title)}">` : `<div class="ad-placeholder-img">📢</div>`}
+        <h1 class="ad-page-title">${esc(ad.title || "Sponsored")}</h1>
+        ${ad.tagline ? `<p class="ad-page-tagline">${esc(ad.tagline)}</p>` : ""}
+        <div class="ad-body-block">
+          ${ad.description ? `<p style="line-height:1.8; font-size:1.05rem; white-space:pre-wrap;">${esc(ad.description)}</p>` : ""}
+          <div style="text-align:center; margin-top:30px;">
+            ${ad.buttonLink
+              ? `<a class="ad-cta-btn" href="${esc(ad.buttonLink)}" target="_blank">${esc(ad.buttonText || "Learn more")}</a>`
+              : `<button class="ad-cta-btn">${esc(ad.buttonText || "Learn more")}</button>`}
+          </div>
+        </div>
+        <div class="ad-page-footer">
+          <p><b>Disclaimer:</b> This is sponsored content. It is created for educational purposes as part of a Science, Technology & Society (STS) project.</p>
+        </div>
       </div>
     </div>
   `;
@@ -402,7 +466,7 @@ function renderAdComingSoon() {
 function renderStaff() {
   return `
     <div class="section">
-      <h1 class="page-title">Editorial Staff</h1>
+      <h1 class="page-title">Team Members</h1>
       <p class="page-sub">The team behind SciTech Knowledge.</p>
       <div class="staff-grid">
         ${state.staff.map(m => `
@@ -518,7 +582,7 @@ function renderQuiz() {
         <div class="quiz-start">
           <div class="quiz-start-card">
             <h2>How Well Do You Know STS?</h2>
-            <p>${state.questions.length} questions on science, technology, and society. Enter your name and section to begin.</p>
+            <p>${state.questions.length} questions on science and technology. Enter your name and section to begin.</p>
             <div class="field"><label>Your Name</label><input id="quizName" placeholder="Juan Dela Cruz"></div>
             <div class="field"><label>Your Section</label><input id="quizSection" placeholder="BSIT 3-A"></div>
             <button class="btn-primary" onclick="startQuiz()">Start Quiz</button>
@@ -729,7 +793,10 @@ function renderAdmin() {
               ❓ Questions <span class="tab-count" id="tabCountQuestions">0</span>
             </button>
             <button class="admin-tab ${state.adminTab === 'staff' ? 'active' : ''}" onclick="switchAdminTab('staff')">
-              👥 Staff <span class="tab-count" id="tabCountStaff">0</span>
+              👥 Team <span class="tab-count" id="tabCountStaff">0</span>
+            </button>
+            <button class="admin-tab ${state.adminTab === 'ad' ? 'active' : ''}" onclick="switchAdminTab('ad')">
+              📢 Ad <span class="tab-count" id="tabCountAd">0</span>
             </button>
             <button class="admin-tab ${state.adminTab === 'messages' ? 'active' : ''}" onclick="switchAdminTab('messages')">
               ✉️ Messages <span class="count-badge hidden" id="tabCountMessages">0</span>
@@ -774,7 +841,7 @@ async function renderAdminTab() {
           <div class="field"><label>Tag</label><input id="fTag" placeholder="e.g. Climate"></div>
         </div>
         <div class="row">
-          <div class="field"><label>Author</label><input id="fAuthor" value="Member 1"></div>
+          <div class="field"><label>Author</label><input id="fAuthor" value="Team"></div>
           <div class="field"><label>Read Time (min)</label><input id="fReadTime" type="number" value="5"></div>
         </div>
         <div class="field"><label>Hero Image URL</label><input id="fHeroImage" placeholder="https://..."></div>
@@ -832,7 +899,7 @@ async function renderAdminTab() {
   else if (state.adminTab === "staff") {
     c.innerHTML = `
       <div class="admin-head" style="margin-bottom:12px;">
-        <h3 style="font-size:1.1rem;">Staff / Team Members</h3>
+        <h3 style="font-size:1.1rem;">Team Members</h3>
         <button class="btn-primary" onclick="openStaffForm()">+ New Member</button>
       </div>
       <div class="admin-form" id="staffForm">
@@ -841,7 +908,7 @@ async function renderAdminTab() {
           <div class="field"><label>Name</label><input id="sName"></div>
           <div class="field"><label>Section</label><input id="sSection" placeholder="BSIT 3-A"></div>
         </div>
-        <div class="field"><label>Role</label><input id="sRole" placeholder="Staff Writer, Editor, Designer..."></div>
+        <div class="field"><label>Role</label><input id="sRole" placeholder="Writer, Editor, Designer..."></div>
         <div class="field"><label>Bio</label><textarea id="sBio" class="short"></textarea></div>
         <div class="row">
           <div class="field"><label>Avatar URL (optional)</label><input id="sAvatar" placeholder="https://..."></div>
@@ -855,6 +922,35 @@ async function renderAdminTab() {
       <div class="admin-list" id="adminStaff">Loading…</div>
     `;
     await loadAdminStaff();
+  }
+
+  else if (state.adminTab === "ad") {
+    c.innerHTML = `
+      <div class="admin-head" style="margin-bottom:12px;">
+        <h3 style="font-size:1.1rem;">Advertisement</h3>
+      </div>
+      <div class="admin-form show" id="adForm">
+        <h3>Ad Content</h3>
+        <div class="row">
+          <div class="field"><label>Title</label><input id="adTitle" placeholder="e.g. NeuroLink Mini"></div>
+          <div class="field"><label>Tagline</label><input id="adTagline" placeholder="e.g. Think. Connect. Belong."></div>
+        </div>
+        <div class="field"><label>Description</label><textarea id="adDescription" class="short"></textarea></div>
+        <div class="row">
+          <div class="field"><label>Button Text</label><input id="adButtonText" placeholder="Learn more"></div>
+          <div class="field"><label>Button Link (optional)</label><input id="adButtonLink" placeholder="https://..."></div>
+        </div>
+        <div class="field"><label>Image URL (optional)</label><input id="adImage" placeholder="https://..."></div>
+        <div class="field">
+          <label><input type="checkbox" id="adActive" style="width:auto;"> Active (show on site)</label>
+        </div>
+        <div class="admin-form-actions">
+          <button class="btn-primary" onclick="saveAd()">Save Ad</button>
+          <button class="admin-btn danger" onclick="deleteAd()">Remove Ad</button>
+        </div>
+      </div>
+    `;
+    await loadAdminAd();
   }
 
   else if (state.adminTab === "messages") {
@@ -906,7 +1002,7 @@ function openArticleForm() {
   state.editingArticleId = null;
   $("formTitle").textContent = "New Article";
   ["fTitle","fTag","fHeroImage","fExcerpt","fBody","fReferences"].forEach(id => $(id).value = "");
-  $("fAuthor").value = "Member 1";
+  $("fAuthor").value = "Team";
   $("fReadTime").value = "5";
   $("fHeadline").checked = false;
   $("fStatus").value = "published";
@@ -1149,7 +1245,7 @@ async function loadAdminStaff() {
           <button class="admin-btn danger" onclick="deleteStaff('${m._id}')">Delete</button>
         </div>
       </div>
-    `).join("") || '<p style="color:var(--muted);">No staff yet.</p>';
+    `).join("") || '<p style="color:var(--muted);">No team members yet.</p>';
   } catch (err) {
     c.innerHTML = `<p style="color:#b91c1c;">${esc(err.message)}</p>`;
   }
@@ -1223,6 +1319,75 @@ async function deleteStaff(id) {
     if (!res.ok) throw new Error("Failed");
     toast("success", "Deleted");
     loadAdminStaff();
+    await loadData();
+  } catch (err) { toast("danger", err.message); }
+}
+
+async function loadAdminAd() {
+  try {
+    const res = await fetch(`${API}/api/admin/ad`, {
+      headers: { "x-admin-password": state.adminPass }
+    });
+    if (!res.ok) throw new Error("Session expired");
+    const data = await res.json();
+    const ad = data.ad || {};
+    state.adminAd = ad;
+    const badge = $("tabCountAd");
+    if (badge) badge.textContent = ad.active ? "ON" : "OFF";
+    if ($("adTitle")) $("adTitle").value = ad.title || "";
+    if ($("adTagline")) $("adTagline").value = ad.tagline || "";
+    if ($("adDescription")) $("adDescription").value = ad.description || "";
+    if ($("adButtonText")) $("adButtonText").value = ad.buttonText || "";
+    if ($("adButtonLink")) $("adButtonLink").value = ad.buttonLink || "";
+    if ($("adImage")) $("adImage").value = ad.image || "";
+    if ($("adActive")) $("adActive").checked = !!ad.active;
+  } catch (err) {
+    toast("danger", err.message);
+  }
+}
+
+async function saveAd() {
+  const body = {
+    title: $("adTitle").value.trim(),
+    tagline: $("adTagline").value.trim(),
+    description: $("adDescription").value.trim(),
+    buttonText: $("adButtonText").value.trim(),
+    buttonLink: $("adButtonLink").value.trim(),
+    image: $("adImage").value.trim(),
+    active: $("adActive").checked
+  };
+  try {
+    const res = await fetch(`${API}/api/admin/ad`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "x-admin-password": state.adminPass },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed");
+    state.adminAd = data.ad;
+    toast("success", "Ad saved");
+    const badge = $("tabCountAd");
+    if (badge) badge.textContent = data.ad.active ? "ON" : "OFF";
+    await loadData();
+  } catch (err) { toast("danger", err.message); }
+}
+
+async function deleteAd() {
+  if (!confirm("Remove the advertisement?")) return;
+  try {
+    const res = await fetch(`${API}/api/admin/ad`, {
+      method: "DELETE",
+      headers: { "x-admin-password": state.adminPass }
+    });
+    if (!res.ok) throw new Error("Failed");
+    toast("success", "Ad removed");
+    state.adminAd = null;
+    ["adTitle","adTagline","adDescription","adButtonText","adButtonLink","adImage"].forEach(id => {
+      if ($(id)) $(id).value = "";
+    });
+    if ($("adActive")) $("adActive").checked = false;
+    const badge = $("tabCountAd");
+    if (badge) badge.textContent = "OFF";
     await loadData();
   } catch (err) { toast("danger", err.message); }
 }
