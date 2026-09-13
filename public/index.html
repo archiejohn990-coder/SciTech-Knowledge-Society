@@ -4,10 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0ea5e9">
-  <title>SciTect Knowledge Society</title>
+  <title>SciTect Knowledge</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+  <div id="toastWrap" class="toast-wrap"></div>
 
   <header class="site-header">
     <div class="header-inner">
@@ -37,9 +39,16 @@
         <a onclick="go('ad')" data-nav="ad">Ad</a>
         <a onclick="go('quiz')" data-nav="quiz">Quiz</a>
         <a onclick="go('staff')" data-nav="staff">Staff</a>
+        <a onclick="go('contact')" data-nav="contact">Contact</a>
+        <a onclick="go('admin')" data-nav="admin">Admin</a>
       </nav>
 
       <div class="header-tools">
+        <button class="icon-btn" onclick="toggleTheme()" title="Toggle theme" id="themeBtn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
         <button class="icon-btn" onclick="toggleSearch()" title="Search">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="7"/>
@@ -55,13 +64,15 @@
     </div>
 
     <div class="search-drop" id="searchDrop">
-      <input id="searchInput" placeholder="Search articles..." oninput="doSearch()" autocomplete="off">
+      <input id="searchInput" placeholder="Search articles, staff, questions..." oninput="doSearch()" autocomplete="off">
       <div class="search-results" id="searchResults"></div>
     </div>
+
+    <div class="progress-bar" id="progressBar"></div>
   </header>
 
   <main id="app">
-    <div id="loading" class="loading">Loading…</div>
+    <div class="loading">Loading…</div>
   </main>
 
   <footer class="site-footer">
@@ -76,6 +87,7 @@
         <a onclick="go('ad')">Ad</a>
         <a onclick="go('quiz')">Quiz</a>
         <a onclick="go('staff')">Staff</a>
+        <a onclick="go('contact')">Contact</a>
       </div>
       <div class="footer-copy">
         An educational project for Science, Technology & Society (STS). Content is for learning purposes only.
