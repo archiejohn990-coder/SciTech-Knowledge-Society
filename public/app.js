@@ -64,6 +64,7 @@ function toggleTheme() {
 })();
 
 function go(page, slug) {
+  if (window.lbInterval) { clearInterval(window.lbInterval); window.lbInterval = null; }
   state.page = page;
   if (slug) state.activeArticleSlug = slug;
   if (page === "quiz" && !state.quiz.startedAt) {
@@ -567,7 +568,7 @@ function renderQuiz() {
         <div class="quiz-start">
           <div class="quiz-start-card">
             <h2>Quiz unavailable</h2>
-            <p>No questions found.</p>
+            <p>No questions found in the database. Ask the admin to seed or add questions.</p>
             <button class="btn-primary" onclick="go('home')">Back to Home</button>
           </div>
         </div>
@@ -786,25 +787,25 @@ function renderAdmin() {
           </div>
 
           <div class="admin-tabs">
-            <button class="admin-tab ${state.adminTab === 'articles' ? 'active' : ''}" onclick="switchAdminTab('articles')">
+            <button class="admin-tab ${state.adminTab === 'articles' ? 'active' : ''}" onclick="switchAdminTab('articles', event)">
               📰 Articles <span class="tab-count" id="tabCountArticles">0</span>
             </button>
-            <button class="admin-tab ${state.adminTab === 'questions' ? 'active' : ''}" onclick="switchAdminTab('questions')">
+            <button class="admin-tab ${state.adminTab === 'questions' ? 'active' : ''}" onclick="switchAdminTab('questions', event)">
               ❓ Questions <span class="tab-count" id="tabCountQuestions">0</span>
             </button>
-            <button class="admin-tab ${state.adminTab === 'staff' ? 'active' : ''}" onclick="switchAdminTab('staff')">
+            <button class="admin-tab ${state.adminTab === 'staff' ? 'active' : ''}" onclick="switchAdminTab('staff', event)">
               👥 Team <span class="tab-count" id="tabCountStaff">0</span>
             </button>
-            <button class="admin-tab ${state.adminTab === 'ad' ? 'active' : ''}" onclick="switchAdminTab('ad')">
+            <button class="admin-tab ${state.adminTab === 'ad' ? 'active' : ''}" onclick="switchAdminTab('ad', event)">
               📢 Ad <span class="tab-count" id="tabCountAd">0</span>
             </button>
-            <button class="admin-tab ${state.adminTab === 'messages' ? 'active' : ''}" onclick="switchAdminTab('messages')">
+            <button class="admin-tab ${state.adminTab === 'messages' ? 'active' : ''}" onclick="switchAdminTab('messages', event)">
               ✉️ Messages <span class="count-badge hidden" id="tabCountMessages">0</span>
             </button>
-            <button class="admin-tab ${state.adminTab === 'comments' ? 'active' : ''}" onclick="switchAdminTab('comments')">
+            <button class="admin-tab ${state.adminTab === 'comments' ? 'active' : ''}" onclick="switchAdminTab('comments', event)">
               💬 Comments <span class="tab-count" id="tabCountComments">0</span>
             </button>
-            <button class="admin-tab ${state.adminTab === 'subscribers' ? 'active' : ''}" onclick="switchAdminTab('subscribers')">
+            <button class="admin-tab ${state.adminTab === 'subscribers' ? 'active' : ''}" onclick="switchAdminTab('subscribers', event)">
               📧 Subscribers <span class="tab-count" id="tabCountSubscribers">0</span>
             </button>
           </div>
@@ -817,10 +818,13 @@ function renderAdmin() {
   renderAdminTab();
 }
 
-function switchAdminTab(tab) {
+function switchAdminTab(tab, event) {
   state.adminTab = tab;
   document.querySelectorAll(".admin-tab").forEach(t => t.classList.remove("active"));
-  event.target.closest(".admin-tab").classList.add("active");
+  if (event && event.target) {
+    const btn = event.target.closest(".admin-tab");
+    if (btn) btn.classList.add("active");
+  }
   renderAdminTab();
 }
 
@@ -910,10 +914,16 @@ async function renderAdminTab() {
         </div>
         <div class="field"><label>Role</label><input id="sRole" placeholder="Writer, Editor, Designer..."></div>
         <div class="field"><label>Bio</label><textarea id="sBio" class="short"></textarea></div>
-        <div class="row">
-          <div class="field"><label>Avatar URL (optional)</label><input id="sAvatar" placeholder="https://..."></div>
-          <div class="field"><label>Order</label><input id="sOrder" type="number" value="99"></div>
+        <div class="field">
+          <label>Avatar</label>
+          <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+            <img id="sAvatarPreview" src="" alt="" style="width:72px;height:72px;border-radius:50%;object-fit:cover;background:var(--border);display:none;">
+            <input type="file" id="sAvatarFile" accept="image/*" onchange="uploadStaffAvatar()" style="flex:1; min-width:200px;">
+          </div>
+          <input type="hidden" id="sAvatar">
+          <small style="color:var(--muted); font-size:0.75rem;">Max 3 MB. JPG, PNG, WEBP, or GIF.</small>
         </div>
+        <div class="field"><label>Order</label><input id="sOrder" type="number" value="99"></div>
         <div class="admin-form-actions">
           <button class="btn-primary" onclick="saveStaff()">Save</button>
           <button class="admin-btn" onclick="closeStaffForm()">Cancel</button>
@@ -1256,6 +1266,9 @@ function openStaffForm() {
   $("sFormTitle").textContent = "New Member";
   ["sName", "sSection", "sRole", "sBio", "sAvatar"].forEach(id => $(id).value = "");
   $("sOrder").value = "99";
+  if ($("sAvatarFile")) $("sAvatarFile").value = "";
+  const preview = $("sAvatarPreview");
+  if (preview) { preview.src = ""; preview.style.display = "none"; }
   $("staffForm").classList.add("show");
 }
 
@@ -1275,8 +1288,44 @@ function editStaff(id) {
   $("sBio").value = m.bio || "";
   $("sAvatar").value = m.avatar || "";
   $("sOrder").value = m.order || 99;
+
+  if ($("sAvatarFile")) $("sAvatarFile").value = "";
+  const preview = $("sAvatarPreview");
+  if (preview) {
+    if (m.avatar) { preview.src = m.avatar; preview.style.display = "block"; }
+    else { preview.src = ""; preview.style.display = "none"; }
+  }
+
   $("staffForm").classList.add("show");
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+async function uploadStaffAvatar() {
+  const fileInput = $("sAvatarFile");
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const res = await fetch(`${API}/api/admin/upload`, {
+      method: "POST",
+      headers: { "x-admin-password": state.adminPass },
+      body: formData
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Upload failed");
+
+    $("sAvatar").value = data.url;
+    const preview = $("sAvatarPreview");
+    preview.src = data.url;
+    preview.style.display = "block";
+    toast("success", "Image uploaded");
+  } catch (err) {
+    toast("danger", err.message);
+    fileInput.value = "";
+  }
 }
 
 async function saveStaff() {
